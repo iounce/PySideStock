@@ -5,7 +5,10 @@ import akshare as ak
 import mplfinance as mpf
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
-from PySide6 import QtWidgets
+from PySide6.QtWidgets import QDialog, QWidget, QLabel, QPushButton, QSpacerItem, QGridLayout, QVBoxLayout, QHBoxLayout, QSizePolicy
+from PySide6.QtCore import Qt, QSize
+from icon import LogoIcon, MenuIcon
+from style import ButtonStyle, WidgetStyle
 from utils import FieldHelper
 
 class KLine():
@@ -53,16 +56,84 @@ class KLine():
         return canvas
 
 
-class KLineWidget(QtWidgets.QDialog):
+class KLineWidget(QDialog):
     def __init__(self, parent, stock_code, start_date, end_date):
         super().__init__(parent)
+        
+        self.init_base_layout()
+        self.init_menu(stock_code)
+        self.init_kline(stock_code, start_date, end_date)
 
+        self.resize(900, 540)
+        
+    def init_base_layout(self):
+        self.grid = QGridLayout(self)
+        
+        self.layout_head = QHBoxLayout()
+        self.layout_body= QHBoxLayout()
+        self.grid.addLayout(self.layout_head, 0, 0, 1, 2)
+        self.grid.addLayout(self.layout_body, 1, 0, 1, 2)
+        
+        self.setObjectName('wid_main')
+        self.setStyleSheet(WidgetStyle.get_border('wid_main'))
+        self.setWindowFlags(Qt.Dialog | Qt.FramelessWindowHint)
+        
+    def init_menu(self, stock_code):
+        lbl_logo = QLabel(self)
+        lbl_logo.setEnabled(True)
+        lbl_logo.setMinimumSize(QSize(24, 24))
+        lbl_logo.setMaximumSize(QSize(24, 24))
+        lbl_logo.setPixmap(LogoIcon.get_pixmap())
+        lbl_logo.setScaledContents(True)
+        
+        lbl_blank = QLabel(self)
+        lbl_blank.setFixedWidth(4)
+        
+        lbl_title = QLabel(self)
+        lbl_title.setMinimumSize(QSize(80, 32))
+        lbl_title.setMaximumSize(QSize(80, 32))
+        lbl_title.setText(stock_code)
+        
+        spacer = QSpacerItem(32, 32, QSizePolicy.Expanding, QSizePolicy.Minimum)
+        
+        btn_close = QPushButton(self)
+        btn_close.setMinimumSize(QSize(32, 32))
+        btn_close.setMaximumSize(QSize(32, 32))
+        btn_close.setFlat(True)
+        btn_close.setIcon(MenuIcon.get_close())
+        btn_close.setIconSize(QSize(24, 24))
+        btn_close.setText('')
+        btn_close.setStyleSheet(ButtonStyle.get_close())
+        btn_close.clicked.connect(self.on_exit)
+        
+        self.layout_head.setSpacing(2)
+        self.layout_head.addWidget(lbl_logo)
+        self.layout_head.addWidget(lbl_blank)
+        self.layout_head.addWidget(lbl_title)
+        self.layout_head.addItem(spacer)
+        self.layout_head.addWidget(btn_close)
+    
+    def init_kline(self, stock_code, start_date, end_date):
         kline = KLine(stock_code, start_date, end_date)
         widget = kline.draw()
         if not widget:
-            widget = QtWidgets.QWidget()
+            widget = QWidget()
+            
+        self.layout_body.addWidget(widget)
+    
+    def on_exit(self):
+        self.close()
+        
+    def mousePressEvent(self, e):
+        if e.button() == Qt.LeftButton:
+            self.is_moving = True
+            self.start_point = e.globalPosition().toPoint()
+            self.window_point = self.frameGeometry().topLeft()
 
-        self.layout = QtWidgets.QVBoxLayout(self)
-        self.layout.addWidget(widget)
+    def mouseMoveEvent(self, e):
+        if self.is_moving:
+            pos = e.globalPosition().toPoint() - self.start_point
+            self.move(self.window_point + pos)
 
-        self.resize(900, 540)
+    def mouseReleaseEvent(self, e):
+        self.is_moving = False
